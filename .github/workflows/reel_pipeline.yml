@@ -1,0 +1,34 @@
+name: Photo to Reel Pipeline
+
+on:
+  schedule:
+    # Runs every 6 hours. Adjust as you like (cron is in UTC).
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+
+jobs:
+  build-reels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run photo-to-reel pipeline
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          DRIVE_FOLDER_SOURCE_ID: ${{ secrets.DRIVE_FOLDER_SOURCE_ID }}
+          DRIVE_FOLDER_OUTPUT_ID: ${{ secrets.DRIVE_FOLDER_OUTPUT_ID }}
+          REEL_DURATION: "12"
+          REEL_FPS: "30"
+        run: python drive_pipeline.py
