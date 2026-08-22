@@ -12,28 +12,34 @@ Folder layout expected (matches Instagram_automation in Drive):
                           (Make.com then watches this folder and posts them)
     03_Reels_Published/ <- Make.com moves posted files here when done
 
-Auth: a Google Cloud service account, JSON key stored in the
-GOOGLE_SERVICE_ACCOUNT_JSON env var (paste the whole key file as one secret).
-Share both Drive folders with the service account's email address
-(ends in ...gserviceaccount.com) as an Editor, exactly like sharing with a
-person.
+Auth: OAuth as YOUR OWN Google account (not a service account). Service
+accounts have no personal storage quota, so they can read shared folders
+but cannot create/own new files in a regular Google Drive -- uploading the
+finished reels needs to happen as you, the actual Drive owner.
+
+Credentials come from a one-time OAuth authorization (done once via Google's
+OAuth Playground -- see the README), which produces a client ID, client
+secret, and a refresh token. Store all three as GitHub secrets; this script
+uses the refresh token to silently mint fresh access tokens on every run,
+no browser interaction needed after the initial setup.
 
 Env vars required:
-    GOOGLE_SERVICE_ACCOUNT_JSON   the service account key, as JSON text
-    DRIVE_FOLDER_SOURCE_ID        folder ID of 01_chosen_by_me
-    DRIVE_FOLDER_OUTPUT_ID        folder ID of 02_Reels_made
+    GOOGLE_OAUTH_CLIENT_ID       OAuth client ID
+    GOOGLE_OAUTH_CLIENT_SECRET   OAuth client secret
+    GOOGLE_OAUTH_REFRESH_TOKEN   OAuth refresh token (from OAuth Playground)
+    DRIVE_FOLDER_SOURCE_ID       folder ID of 01_chosen_by_me
+    DRIVE_FOLDER_OUTPUT_ID       folder ID of 02_Reels_made
 
 Optional:
     REEL_DURATION   seconds per reel (default 12, matching the brand template)
     REEL_FPS        frames per second (default 30)
 """
 import io
-import json
 import os
 import sys
 import tempfile
 
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 
@@ -48,9 +54,14 @@ PROCESSED_MARKER_PREFIX = "_processed__"  # a tiny .done marker per source file
 
 
 def get_service():
-    key_json = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
-    info = json.loads(key_json)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    creds = Credentials(
+        token=None,
+        refresh_token=os.environ["GOOGLE_OAUTH_REFRESH_TOKEN"],
+        client_id=os.environ["GOOGLE_OAUTH_CLIENT_ID"],
+        client_secret=os.environ["GOOGLE_OAUTH_CLIENT_SECRET"],
+        token_uri="https://oauth2.googleapis.com/token",
+        scopes=SCOPES,
+    )
     return build("drive", "v3", credentials=creds)
 
 
