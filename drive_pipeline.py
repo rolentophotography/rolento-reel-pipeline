@@ -120,7 +120,15 @@ def download_file(service, file_id, dest_path):
 def upload_file(service, local_path, name, folder_id):
     media = MediaFileUpload(local_path, mimetype="video/mp4", resumable=True)
     body = {"name": name, "parents": [folder_id]}
-    service.files().create(body=body, media_body=media, fields="id").execute()
+    file = service.files().create(body=body, media_body=media, fields="id").execute()
+    # Make.com's Instagram/Facebook steps fetch this video by URL and can't
+    # authenticate as us, so the file must be link-shareable, not private
+    # (a private file makes Instagram's download silently fail).
+    service.permissions().create(
+        fileId=file["id"],
+        body={"type": "anyone", "role": "reader"},
+        fields="id",
+    ).execute()
 
 
 def fetch_music_library(service, folder_id, dest_dir):
