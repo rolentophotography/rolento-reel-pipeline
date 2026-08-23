@@ -326,6 +326,7 @@ def convert(src_path, out_path, duration=12.0, fps=30, music=None):
         "-c:a", "aac", "-b:a", "128k",
         *audio_filter,
         "-shortest",
+        "-use_editlist", "0",
         "-movflags", "+faststart",
         out_path,
     ]
