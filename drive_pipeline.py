@@ -31,6 +31,11 @@ Env vars required:
     DRIVE_FOLDER_OUTPUT_ID       folder ID of 02_Reels_made
 
 Optional:
+    DRIVE_FOLDER_PUBLISHED_ID   folder ID of 03_Reels_Published. Checked
+                            alongside 02_Reels_made when deciding whether a
+                            photo already has a reel, so a photo that's
+                            already been posted (and moved there by
+                            Make.com) never gets re-rendered as a duplicate.
     DRIVE_FOLDER_MUSIC_ID   folder ID of a Drive folder with royalty-free
                             music (mp3/m4a/wav/...). Each reel gets one
                             track baked in, looped/trimmed to the reel
@@ -168,6 +173,7 @@ def pick_track(tracks, key):
 def main():
     source_id = os.environ["DRIVE_FOLDER_SOURCE_ID"]
     output_id = os.environ["DRIVE_FOLDER_OUTPUT_ID"]
+    published_id = os.environ.get("DRIVE_FOLDER_PUBLISHED_ID", "").strip()
     music_id = os.environ.get("DRIVE_FOLDER_MUSIC_ID", "").strip()
     duration = float(os.environ.get("REEL_DURATION", "12"))
     fps = int(os.environ.get("REEL_FPS", "30"))
@@ -175,6 +181,12 @@ def main():
     service = get_service()
     photos = list_source_photos(service, source_id)
     existing_outputs = list_output_names(service, output_id)
+    if published_id:
+        # Once Make.com posts a reel it moves the file out of 02_Reels_made
+        # into 03_Reels_Published -- check there too, otherwise a photo
+        # that's already been posted looks "new" again and gets a
+        # duplicate reel rendered and re-uploaded.
+        existing_outputs |= list_output_names(service, published_id)
 
     if not photos:
         print("No photos found in source folder.")
